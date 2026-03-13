@@ -1,0 +1,1000 @@
+/* ═══════════════════════════════════════════════════════════════
+   SAFEWALK — STYLESHEET
+   Structure:
+     1.  CSS Custom Properties (design tokens)
+     2.  Base / Reset
+     3.  Splash Screen
+     4.  App Shell & Map
+     5.  PC Sidebar
+     6.  Search Fields & Autocomplete
+     7.  Transport Banner
+     8.  Filter Chips
+     9.  Route Cards
+    10.  Live Tracking Panel
+    11.  Directions Panel
+    12.  Empty State
+    13.  Mobile Top Bar
+    14.  Mobile FABs
+    15.  Mobile Bottom Tab
+    16.  Analyzing Overlay
+    17.  Welcome Screen
+    18.  SOS Modal & Emergency Contacts
+    19.  Onboarding Overlay
+    20.  Toast
+    21.  Map Markers
+    22.  Responsive — Desktop override (≥769px)
+    23.  Responsive — Mobile adjustments (≤768px)
+    24.  Keyframe Animations
+═══════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. CSS CUSTOM PROPERTIES (Design Tokens) ──────────────────
+   All colours, sizes, and effects are defined here so that
+   night mode (body.night-mode) only needs to override a few vars.
+────────────────────────────────────────────────────────────────*/
+:root {
+  /* Background layers (dark → darker) */
+  --bg:  #060e1c;
+  --s1:  #0b1625;
+  --s2:  #101e32;
+  --s3:  #162440;
+
+  /* Surface borders */
+  --b1: rgba(255,255,255,0.06);
+  --b2: rgba(255,255,255,0.12);
+
+  /* Semantic colours */
+  --safe:     #00e5a0;
+  --safe-d:   rgba(0,229,160,0.08);
+  --safe-g:   rgba(0,229,160,0.24);   /* glow / shadow */
+  --warn:     #ffb020;
+  --warn-d:   rgba(255,176,32,0.09);
+  --danger:   #ff4757;
+  --danger-d: rgba(255,71,87,0.09);
+  --blue:     #4f8aff;
+  --pink:     #ff6b9d;
+
+  /* Typography */
+  --txt:   #eef2ff;
+  --txt2:  #9aadcc;
+  --muted: #3c5070;
+
+  /* Layout */
+  --bar:    340px;   /* sidebar width on desktop */
+  --r:      14px;    /* standard border-radius */
+
+  /* Elevation */
+  --shadow: 0 16px 48px rgba(0,0,0,0.6);
+
+  /* Night mode overlay — transparent by default */
+  --night-overlay: rgba(15,5,40,0.0);
+}
+
+/* Night mode — shifts all backgrounds deeper/cooler, adds purple map tint */
+body.night-mode {
+  --bg: #03070f; --s1: #060d1a; --s2: #0a1222; --s3: #0e1930;
+  --night-overlay: rgba(30,10,80,0.18);
+}
+body.night-mode #map::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--night-overlay);
+  z-index: 2;
+  pointer-events: none;
+}
+
+
+/* ── 2. BASE / RESET ────────────────────────────────────────────*/
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent; /* remove mobile tap flash */
+}
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;            /* map fills viewport, no page scroll */
+  position: fixed;             /* prevent iOS rubber-band bounce */
+  background: var(--bg);
+  color: var(--txt);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+
+/* ── 3. SPLASH SCREEN ──────────────────────────────────────────
+   Full-viewport, fades out after init sequence completes.
+────────────────────────────────────────────────────────────────*/
+#splash {
+  position: fixed; inset: 0; z-index: 9999;
+  background: radial-gradient(ellipse at 50% 38%, #0d1f3a 0%, var(--bg) 68%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.sp-ring {
+  position: relative; width: 76px; height: 76px; margin-bottom: 24px;
+}
+/* Outer spinning ring */
+.sp-ring::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--safe);
+  border-right-color: var(--blue);
+  animation: spin 1s linear infinite;
+}
+/* Inner counter-spinning ring */
+.sp-ring::after {
+  content: '';
+  position: absolute; inset: 9px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  border-bottom-color: rgba(0,229,160,0.3);
+  animation: spin 1.6s linear infinite reverse;
+}
+.sp-ic {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.9rem;
+  animation: beat 2s ease-in-out infinite;
+}
+.sp-logo {
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.1rem;
+  letter-spacing: -.04em;
+  background: linear-gradient(135deg, var(--safe), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  animation: up .4s .1s both;
+}
+.sp-tag {
+  font-size: .72rem; color: var(--txt2);
+  letter-spacing: .1em; text-transform: uppercase;
+  margin: 4px 0 32px;
+  animation: up .4s .2s both;
+}
+.sp-steps { display: flex; flex-direction: column; gap: 7px; animation: up .4s .32s both; min-width: 190px; }
+.sp-step  { display: flex; align-items: center; gap: 8px; font-size: .73rem; color: var(--muted); opacity: 0; transition: all .22s; }
+.sp-step.active { opacity: 1; color: var(--txt); }
+.sp-step.done   { opacity: 1; color: var(--safe); }
+.sp-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+
+/* ── 4. APP SHELL & MAP ────────────────────────────────────────*/
+#app {
+  position: fixed; inset: 0;
+  opacity: 0; transition: opacity .5s;   /* fades in after splash */
+}
+#app.visible { opacity: 1; }
+
+#map {
+  position: absolute; inset: 0; z-index: 1;
+  touch-action: pan-x pan-y;             /* allow panning on mobile */
+}
+
+/* Centred hint before first route search */
+#map-hint {
+  position: absolute; bottom: 50%; left: 50%;
+  transform: translate(-50%, 50%);
+  z-index: 10; pointer-events: none; text-align: center;
+  transition: opacity .4s;
+}
+.map-hint-bubble {
+  background: rgba(11,22,37,.92); backdrop-filter: blur(12px);
+  border: 1px solid var(--b2); border-radius: 16px;
+  padding: 11px 16px; font-size: .76rem; color: var(--txt2);
+  white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,.5);
+}
+.map-hint-bubble b { color: var(--safe); }
+
+/* Leaflet overrides — match dark theme */
+.leaflet-container          { background: #07101d !important; }
+.leaflet-control-attribution{ display: none !important; }
+.leaflet-bar a              { background: var(--s1) !important; color: var(--txt) !important; border-color: var(--b2) !important; }
+.leaflet-bar a:hover        { background: var(--s2) !important; }
+.leaflet-popup-content-wrapper { background: var(--s1) !important; color: var(--txt) !important; border: 1px solid var(--b2) !important; border-radius: var(--r) !important; box-shadow: var(--shadow) !important; }
+.leaflet-popup-tip          { background: var(--s1) !important; }
+.leaflet-popup-content      { font-family: 'Plus Jakarta Sans', sans-serif; font-size: .78rem; margin: 10px 14px !important; line-height: 1.6; }
+.leaflet-popup-content b    { color: var(--safe); }
+.leaflet-popup-content small{ color: var(--txt2); }
+
+
+/* ── 5. PC SIDEBAR ─────────────────────────────────────────────
+   Fixed left panel on desktop. On mobile it slides up from
+   the bottom edge as a sheet (see section 23 for mobile rules).
+────────────────────────────────────────────────────────────────*/
+#sidebar {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: var(--bar); z-index: 100;
+  display: flex; flex-direction: column;
+  background: rgba(6,14,28,.97);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid var(--b2);
+  box-shadow: 4px 0 28px rgba(0,0,0,.4);
+  transition: transform .35s cubic-bezier(.4,0,.2,1);
+}
+
+/* Sidebar header */
+.sb-head { padding: 15px 15px 11px; border-bottom: 1px solid var(--b1); flex-shrink: 0; }
+.sb-logo-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+.sb-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; letter-spacing: -.02em; }
+.sb-logo span.sw-text  { background: linear-gradient(90deg, var(--safe), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.sb-logo span.sw-shield{ font-style: normal; -webkit-text-fill-color: initial; background: none; }
+.sb-live { display: flex; align-items: center; gap: 5px; font-size: .65rem; color: var(--txt2); }
+
+/* Blinking green dot = live GPS */
+.ldot { width: 5px; height: 5px; border-radius: 50%; background: var(--safe); animation: blink 1.5s infinite; }
+
+.sb-right { display: flex; gap: 6px; align-items: center; }
+
+/* Icon buttons (night mode, locate) */
+.ibtn {
+  width: 32px; height: 32px; border-radius: 9px;
+  border: 1px solid var(--b2); background: var(--s2);
+  color: var(--txt); font-size: .9rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .18s; flex-shrink: 0;
+}
+.ibtn:hover, .ibtn:active { background: var(--s3); transform: scale(.92); }
+
+/* SOS button — pulsing red */
+.sos-btn {
+  height: 32px; border: none; background: var(--danger); color: #fff;
+  padding: 0 12px; border-radius: 50px;
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: .68rem; letter-spacing: .05em;
+  cursor: pointer; display: flex; align-items: center; gap: 4px;
+  animation: sosPulse 2s infinite; white-space: nowrap;
+}
+.sos-btn:active { transform: scale(.92); }
+
+/* Mobile drag handle (hidden on desktop) */
+.mob-handle {
+  width: 32px; height: 3px; background: var(--muted);
+  border-radius: 2px; margin: 9px auto 0;
+  opacity: .35; flex-shrink: 0; display: none;
+}
+
+/* Sidebar body: flex-column, scrollable */
+.sb-body {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.sb-body::-webkit-scrollbar       { width: 3px; }
+.sb-body::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+
+/* ── 6. SEARCH FIELDS & AUTOCOMPLETE ───────────────────────────*/
+.sb-search { display: flex; flex-direction: column; gap: 7px; }
+.field-row  { position: relative; }
+.field {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s2); border: 1.5px solid var(--b2);
+  border-radius: 12px; padding: 0 11px; height: 44px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.field:focus-within { border-color: var(--safe); box-shadow: 0 0 0 3px var(--safe-g); }
+
+/* Coloured dot: green = from, red = to */
+.fdot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.fdot-f { background: var(--safe);   box-shadow: 0 0 6px var(--safe); }
+.fdot-t { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+.field input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--txt); font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .84rem; font-weight: 500; min-width: 0;
+}
+.field input::placeholder { color: var(--muted); }
+
+/* GPS locate button inside field */
+.floc { background: none; border: none; cursor: pointer; font-size: .92rem; padding: 2px; opacity: .6; transition: opacity .18s; flex-shrink: 0; }
+.floc:hover { opacity: 1; }
+
+/* Swap From/To row */
+.swap-row { display: flex; align-items: center; gap: 7px; }
+.swap-btn {
+  background: var(--s3); border: 1px solid var(--b2);
+  border-radius: 8px; color: var(--txt2); cursor: pointer;
+  font-size: .88rem; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .18s; flex-shrink: 0;
+}
+.swap-btn:hover { color: var(--txt); }
+
+/* Autocomplete dropdown */
+.sugg {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--s1); border: 1px solid var(--b2);
+  border-radius: 12px; z-index: 9000;
+  box-shadow: var(--shadow); display: none;
+  max-height: 230px; overflow-y: auto;
+}
+.sugg-section-title { font-size: .6rem; font-weight: 700; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; padding: 7px 12px 3px; }
+.si-saved  { color: var(--warn); }
+.si-recent { color: var(--txt2); }
+.sugg.show { display: block; }
+.sugg::-webkit-scrollbar       { width: 3px; }
+.sugg::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+/* Suggestion item */
+.si { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--b1); transition: background .12s; }
+.si:last-child     { border-bottom: none; }
+.si:hover, .si:active { background: var(--s2); }
+.si-ic   { font-size: .88rem; width: 22px; text-align: center; flex-shrink: 0; }
+.si-name { font-size: .8rem; font-weight: 600; color: var(--txt); }
+.si-sub  { font-size: .67rem; color: var(--txt2); margin-top: 1px; }
+
+/* Search / Find button */
+.go-btn {
+  height: 40px;
+  background: linear-gradient(135deg, var(--safe), var(--blue));
+  border: none; border-radius: 12px;
+  color: #050d1a; font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: .84rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  box-shadow: 0 4px 18px var(--safe-g); transition: all .18s;
+}
+.go-btn:hover           { opacity: .92; transform: translateY(-1px); }
+.go-btn:active          { transform: scale(.97); }
+.go-btn:disabled        { opacity: .42; pointer-events: none; transform: none; }
+
+
+/* ── 7. TRANSPORT BANNER ────────────────────────────────────────
+   Shown when route distance > 2.5 km.
+   Fixed positioning removed — sits in sidebar flow to avoid
+   overlapping route cards on narrow mobile screens.
+────────────────────────────────────────────────────────────────*/
+.transport-banner {
+  margin: 11px 13px 0;
+  background: linear-gradient(135deg, rgba(255,176,32,.1), rgba(255,71,87,.07));
+  border: 1px solid rgba(255,176,32,.28);
+  border-radius: 13px; padding: 11px 12px;
+  display: none; /* shown by JS adding .show */
+  animation: up .3s ease;
+}
+.transport-banner.show { display: block; }
+.tb-head  { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.tb-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .8rem; color: var(--warn); }
+.tb-body  { font-size: .71rem; color: var(--txt2); line-height: 1.5; margin-bottom: 7px; }
+.tb-opts  { display: flex; gap: 5px; flex-wrap: wrap; }
+.tb-opt {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--s2); border: 1px solid var(--b2);
+  border-radius: 7px; padding: 5px 9px;
+  font-size: .69rem; font-weight: 600; color: var(--txt2);
+  cursor: pointer; transition: all .17s;
+}
+.tb-opt:hover { border-color: var(--warn); color: var(--warn); }
+
+
+/* ── 8. FILTER CHIPS ────────────────────────────────────────────
+   Horizontally scrollable row of layer toggle chips.
+   Uses drag-to-scroll on desktop, swipe on mobile.
+────────────────────────────────────────────────────────────────*/
+.filter-section       { padding: 10px 13px 0; flex-shrink: 0; }
+.filter-label-row     { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.filter-label         { font-size: .63rem; font-weight: 700; color: var(--txt2); letter-spacing: .08em; text-transform: uppercase; }
+.filter-scroll-hint   { font-size: .58rem; color: var(--muted); display: flex; align-items: center; gap: 3px; cursor: pointer; }
+
+/* Fade-out edges to hint at horizontal scroll */
+.filter-track-wrap { position: relative; }
+.filter-track-wrap::before,
+.filter-track-wrap::after {
+  content: ''; position: absolute; top: 0; bottom: 6px; width: 22px; z-index: 2; pointer-events: none;
+}
+.filter-track-wrap::before { left:  0; background: linear-gradient(to right, rgba(6,14,28,.9), transparent); }
+.filter-track-wrap::after  { right: 0; background: linear-gradient(to left,  rgba(6,14,28,.9), transparent); }
+
+.filter-row {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  padding: 2px 4px 8px; flex-wrap: nowrap;
+  cursor: grab; scroll-behavior: smooth;
+}
+.filter-row:active              { cursor: grabbing; }
+.filter-row::-webkit-scrollbar  { display: none; }
+
+/* Position indicator dots */
+.filter-dots  { display: flex; justify-content: center; gap: 4px; margin-top: 2px; margin-bottom: 4px; }
+.fdot-ind     { width: 16px; height: 3px; border-radius: 2px; background: var(--muted); transition: all .25s; }
+.fdot-ind.active { background: var(--safe); width: 24px; }
+
+/* Chip base style */
+.fc {
+  flex-shrink: 0; border-radius: 50px; padding: 7px 13px;
+  font-size: .71rem; font-weight: 700; color: var(--txt2);
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; gap: 5px;
+  white-space: nowrap; user-select: none;
+  background: var(--s2); border: 1.5px solid var(--b2);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.fc:hover  { border-color: rgba(255,255,255,.25); transform: translateY(-1px); }
+.fc:active { transform: scale(.94); }
+.fc.on     { border-color: transparent; color: #050d1a; transform: none; }
+
+/* Active colours per layer type */
+.fc-safe.on  { background: var(--safe);  box-shadow: 0 3px 12px var(--safe-g); }
+.fc-dark.on  { background: var(--danger);box-shadow: 0 3px 12px rgba(255,71,87,.3); }
+.fc-pol.on   { background: #f5a623;      box-shadow: 0 3px 12px rgba(245,166,35,.4); color: #1a0d00; }
+.fc-hosp.on  { background: #00b4d8;      box-shadow: 0 3px 12px rgba(0,180,216,.4); }
+.fc-cctv.on  { background: var(--blue);  box-shadow: 0 3px 12px rgba(79,138,255,.4); }
+
+
+/* ── 9. ROUTE CARDS ─────────────────────────────────────────────*/
+.routes-section { padding: 8px 13px 24px; flex: 1; }
+.routes-title   { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .86rem; color: var(--txt2); margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; }
+.routes-meta    { font-size: .67rem; color: var(--txt2); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.rlist          { display: flex; flex-direction: column; gap: 6px; }
+
+.rcard {
+  background: var(--s2); border: 1.5px solid var(--b1);
+  border-radius: var(--r); padding: 10px 11px;
+  cursor: pointer; transition: all .2s;
+  position: relative; overflow: hidden;
+  animation: up .3s ease both;
+}
+/* Left accent stripe by route type */
+.rcard::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+.rs::before { background: var(--safe); }
+.rw::before { background: var(--warn); }
+.rd::before { background: var(--danger); }
+
+.rcard:hover { transform: translateX(2px); }
+.rcard.sel   { transform: translateX(4px); }
+.rs.sel { border-color: rgba(0,229,160,.28); background: var(--safe-d); }
+.rw.sel { border-color: rgba(255,176,32,.28); background: var(--warn-d); }
+.rd.sel { border-color: rgba(255,71,87,.28);  background: var(--danger-d); }
+
+.rc-top  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.rc-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .84rem; }
+.rbadge  { font-size: .63rem; font-weight: 800; padding: 2px 7px; border-radius: 50px; letter-spacing: .03em; }
+.bs { background: var(--safe-d); color: var(--safe); }
+.bw { background: var(--warn-d); color: var(--warn); }
+.bd { background: var(--danger-d); color: var(--danger); }
+
+/* Meta row: time · distance · cameras · ±time tag */
+.rc-meta { display: flex; gap: 5px; font-size: .7rem; color: var(--txt2); margin-bottom: 5px; flex-wrap: wrap; align-items: center; }
+.xtag      { font-size: .6rem; color: var(--txt2); background: rgba(255,255,255,.05); padding: 1px 6px; border-radius: 20px; white-space: nowrap; }
+.xtag-fast { color: var(--safe); background: var(--safe-d); }
+
+/* Safety score bar */
+.sbar-wrap  { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.sbar       { flex: 1; height: 6px; background: rgba(255,255,255,.07); border-radius: 3px; overflow: hidden; }
+.sfill      { height: 100%; border-radius: 3px; transition: width .8s cubic-bezier(.34,1.56,.64,1); }
+.score-pct  { font-family: 'Syne', sans-serif; font-weight: 800; font-size: .72rem; flex-shrink: 0; min-width: 30px; text-align: right; }
+.sf-s-txt { color: var(--safe); }
+.sf-w-txt { color: var(--warn); }
+.sf-d-txt { color: var(--danger); }
+.sf-s { background: linear-gradient(90deg, var(--safe), var(--blue)); }
+.sf-w { background: var(--warn); }
+.sf-d { background: var(--danger); }
+
+/* Tag pills */
+.rtags { display: flex; flex-wrap: wrap; gap: 3px; }
+.rtag  { font-size: .62rem; font-weight: 700; padding: 2px 6px; border-radius: 5px; }
+.t-blue   { background: rgba(79,138,255,.13); color: var(--blue); }
+.t-green  { background: rgba(0,229,160,.1);   color: var(--safe); }
+.t-red    { background: rgba(255,71,87,.12);  color: var(--danger); }
+.t-yellow { background: rgba(255,176,32,.12); color: var(--warn); }
+.t-amber  { background: rgba(245,166,35,.15); color: #f5a623; }
+.t-teal   { background: rgba(0,180,216,.13);  color: #00b4d8; }
+.t-road   { background: rgba(154,173,204,.1); color: var(--txt2); }
+.t-grey   { background: rgba(255,255,255,.06);color: var(--txt2); }
+.t-pink   { background: rgba(255,107,157,.1); color: var(--pink); }
+
+/* "Why this score?" expandable panel */
+.why-toggle {
+  font-size: .67rem; color: var(--txt2); cursor: pointer;
+  margin-top: 6px; padding: 3px 0;
+  display: flex; align-items: center; gap: 4px;
+  user-select: none; opacity: .7; transition: opacity .15s;
+}
+.why-toggle:hover { opacity: 1; color: var(--safe); }
+.why {
+  margin-top: 4px;
+  background: rgba(0,229,160,.04); border: 1px solid rgba(0,229,160,.12);
+  border-radius: 10px; padding: 7px 9px;
+  font-size: .7rem; color: var(--txt2); line-height: 1.55;
+  display: none;
+}
+.why.show { display: block; }
+.why b { color: var(--safe); }
+
+/* Card action buttons row */
+.rc-actions { display: flex; gap: 5px; margin-top: 8px; }
+.rc-map-btn {
+  flex: 1; height: 30px; background: var(--s3);
+  border: 1px solid var(--b2); border-radius: 7px;
+  color: var(--txt2); font-size: .69rem; font-weight: 600;
+  cursor: pointer; transition: all .17s;
+}
+.rc-map-btn:hover, .rc-map-btn:active { background: var(--s2); color: var(--txt); }
+.rc-sel-btn {
+  flex: 1.5; height: 30px; background: var(--s3);
+  border: 1px solid var(--b2); border-radius: 7px;
+  color: var(--txt2); font-size: .69rem; font-weight: 700;
+  cursor: pointer; transition: all .17s;
+}
+.rc-sel-btn.active   { background: linear-gradient(135deg, var(--safe), var(--blue)); border-color: transparent; color: #050d1a; }
+.rc-sel-btn:hover    { border-color: var(--safe); color: var(--safe); }
+.rc-walk-btn {
+  flex: 1.2; height: 30px;
+  background: linear-gradient(135deg, rgba(0,229,160,.15), rgba(79,138,255,.15));
+  border: 1px solid rgba(0,229,160,.3); border-radius: 7px;
+  color: var(--safe); font-size: .69rem; font-weight: 700;
+  cursor: pointer; transition: all .17s;
+}
+.rc-walk-btn:hover { background: linear-gradient(135deg, rgba(0,229,160,.25), rgba(79,138,255,.25)); }
+
+
+/* ── 10. LIVE TRACKING PANEL ─────────────────────────────────────
+    Slides up from bottom during active walking navigation.
+    On desktop, starts from the sidebar edge (left: var(--bar)).
+────────────────────────────────────────────────────────────────*/
+.track-panel {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 300;
+  background: rgba(6,14,28,.97); backdrop-filter: blur(20px);
+  border-top: 1px solid var(--b2); padding: 12px 15px 20px;
+  transform: translateY(100%);
+  transition: transform .35s cubic-bezier(.4,0,.2,1);
+  display: none;
+}
+.track-panel.show { transform: translateY(0); display: block; }
+
+.track-header    { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.track-title     { font-family: 'Syne', sans-serif; font-weight: 800; font-size: .9rem; color: var(--safe); display: flex; align-items: center; gap: 6px; }
+.track-close     { background: none; border: 1px solid var(--b2); border-radius: 8px; color: var(--txt2); font-size: .8rem; padding: 3px 9px; cursor: pointer; }
+.track-stats     { display: flex; gap: 10px; margin-bottom: 10px; }
+.track-stat      { flex: 1; background: var(--s2); border-radius: 10px; padding: 8px 10px; text-align: center; }
+.track-stat-val  { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--txt); }
+.track-stat-lbl  { font-size: .62rem; color: var(--txt2); margin-top: 2px; }
+.track-prog-wrap { margin-bottom: 10px; }
+.track-prog-lbl  { display: flex; justify-content: space-between; font-size: .67rem; color: var(--txt2); margin-bottom: 4px; }
+.track-prog      { height: 6px; background: rgba(255,255,255,.07); border-radius: 3px; overflow: hidden; }
+.track-prog-fill { height: 100%; background: linear-gradient(90deg, var(--safe), var(--blue)); border-radius: 3px; transition: width .5s ease; width: 0%; }
+.track-step      { background: var(--s2); border-radius: 10px; padding: 9px 11px; font-size: .76rem; color: var(--txt); display: flex; align-items: flex-start; gap: 7px; line-height: 1.45; }
+.track-step-ico  { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.track-step b    { color: var(--safe); }
+.track-stop-btn  { width: 100%; height: 38px; margin-top: 9px; background: rgba(255,71,87,.12); border: 1px solid rgba(255,71,87,.3); border-radius: 10px; color: var(--danger); font-family: 'Syne', sans-serif; font-weight: 700; font-size: .78rem; cursor: pointer; }
+
+
+/* ── 11. DIRECTIONS PANEL ────────────────────────────────────────*/
+.dir-section { padding: 0 13px 10px; flex-shrink: 0; }
+.dir-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; background: var(--s2);
+  border: 1px solid var(--b2); border-radius: 10px;
+  cursor: pointer; transition: all .18s; margin-bottom: 0;
+}
+.dir-toggle:hover      { border-color: rgba(255,255,255,.22); }
+.dir-toggle-left  { display: flex; align-items: center; gap: 7px; font-size: .76rem; font-weight: 700; color: var(--txt); }
+.dir-toggle-right { font-size: .68rem; color: var(--txt2); display: flex; align-items: center; gap: 4px; }
+.dir-list {
+  display: none; margin-top: 6px;
+  background: var(--s1); border: 1px solid var(--b1);
+  border-radius: 10px; overflow: hidden;
+  max-height: 220px; overflow-y: auto;
+}
+.dir-list.show { display: block; }
+.dir-list::-webkit-scrollbar       { width: 3px; }
+.dir-list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+.dir-step {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 11px; border-bottom: 1px solid var(--b1);
+  font-size: .72rem; color: var(--txt2);
+}
+.dir-step:last-child  { border-bottom: none; }
+.dir-step-ico  { font-size: 1rem; flex-shrink: 0; width: 20px; text-align: center; }
+.dir-step-name { flex: 1; color: var(--txt); font-weight: 500; }
+.dir-step-dist { font-size: .65rem; color: var(--muted); flex-shrink: 0; }
+.dir-step.highlight                    { background: rgba(0,229,160,.06); }
+.dir-step.highlight .dir-step-name    { color: var(--safe); }
+
+
+/* ── 12. EMPTY STATE ─────────────────────────────────────────────*/
+.empty-state {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 28px 20px; text-align: center; gap: 11px; color: var(--txt2);
+}
+.es-ic    { font-size: 2.5rem; opacity: .38; }
+.es-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .92rem; opacity: .65; }
+.es-sub   { font-size: .73rem; line-height: 1.5; opacity: .45; max-width: 210px; }
+
+
+/* ── 13. MOBILE TOP BAR ─────────────────────────────────────────
+   Hidden on desktop. Contains From/To fields and SOS.
+────────────────────────────────────────────────────────────────*/
+#mob-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 200; padding: 9px 11px; display: none; }
+
+.mb-inner {
+  background: rgba(6,14,28,.97); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--b2); border-radius: 17px;
+  padding: 9px 12px 11px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.mb-row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.mb-logo {
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: .96rem; letter-spacing: -.02em;
+  background: linear-gradient(90deg, var(--safe), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  flex: 1; display: flex; align-items: center; gap: 4px;
+}
+.mb-live { display: flex; align-items: center; gap: 4px; font-size: .61rem; color: var(--txt2); }
+.mb-fields { display: flex; flex-direction: column; gap: 6px; }
+
+/* FIX: mb-frow uses position:relative so suggestion dropdowns
+   are measured against the correct ancestor on narrow screens.
+   Previously was display:flex without positioning context, causing
+   the suggestion list to escape the top bar bounds. */
+.mb-frow   { position: relative; display: flex; align-items: center; gap: 6px; }
+
+.mb-field {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  background: var(--s2); border: 1.5px solid var(--b2);
+  border-radius: 10px; padding: 0 9px; height: 40px;
+  transition: border-color .2s; min-width: 0;
+}
+.mb-field:focus-within { border-color: var(--safe); box-shadow: 0 0 0 2px var(--safe-g); }
+.mb-field input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--txt); font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .8rem; font-weight: 500; min-width: 0;
+}
+.mb-field input::placeholder { color: var(--muted); }
+
+.mb-side {
+  width: 36px; height: 36px; border-radius: 9px;
+  border: 1px solid var(--b2); background: var(--s2);
+  color: var(--txt); font-size: .9rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .17s;
+}
+.mb-side:active { transform: scale(.92); }
+
+.mb-go {
+  height: 40px;
+  background: linear-gradient(135deg, var(--safe), var(--blue));
+  border: none; border-radius: 10px;
+  color: #050d1a; font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: .8rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  box-shadow: 0 4px 14px var(--safe-g); transition: all .17s; width: 100%;
+}
+.mb-go:active   { transform: scale(.97); }
+.mb-go:disabled { opacity: .42; pointer-events: none; }
+
+/* Mobile suggestion dropdown (fixed — positioned via JS to bar bottom) */
+.mb-sugg {
+  position: fixed; left: 11px; right: 11px;
+  background: var(--s1); border: 1px solid var(--b2); border-radius: 12px;
+  z-index: 9100; box-shadow: 0 12px 36px rgba(0,0,0,.7);
+  display: none; max-height: 200px; overflow-y: auto;
+}
+.mb-sugg.show { display: block; }
+.mb-sugg::-webkit-scrollbar       { width: 3px; }
+.mb-sugg::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+
+/* ── 14. MOBILE FABs ─────────────────────────────────────────────
+   Floating action buttons: locate + SOS (right side, above bottom tab).
+────────────────────────────────────────────────────────────────*/
+#mob-fabs {
+  position: absolute; bottom: 100px; right: 11px; z-index: 200;
+  flex-direction: column; gap: 7px; display: none;
+}
+.fab {
+  width: 44px; height: 44px; border-radius: 13px;
+  border: 1px solid var(--b2); background: rgba(6,14,28,.94);
+  backdrop-filter: blur(14px); color: var(--txt); font-size: 1.1rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,.5); transition: all .17s;
+}
+.fab:active { transform: scale(.91); }
+.fab-sos {
+  background: linear-gradient(135deg, #ff4757, #c7001a);
+  border-color: transparent;
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: .65rem; letter-spacing: .05em; color: #fff;
+  width: auto; padding: 0 13px;
+  animation: sosPulse 2s infinite;
+}
+
+
+/* ── 15. MOBILE BOTTOM TAB ───────────────────────────────────────
+   Tappable strip that opens the sidebar sheet.
+────────────────────────────────────────────────────────────────*/
+#mob-tab {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 90;
+  background: rgba(6,14,28,.93); backdrop-filter: blur(12px);
+  border-top: 1px solid var(--b2); padding: 9px 15px 13px;
+  cursor: pointer; display: none;
+}
+.mt-handle { width: 32px; height: 3px; background: var(--muted); border-radius: 2px; margin: 0 auto 7px; opacity: .38; }
+.mt-inner  { display: flex; align-items: center; gap: 9px; }
+.mt-left   { display: flex; align-items: center; gap: 8px; flex: 1; }
+.mt-ico    { font-size: 1.1rem; }
+.mt-txt strong { display: block; font-family: 'Syne', sans-serif; font-weight: 700; font-size: .8rem; }
+.mt-txt span   { font-size: .68rem; color: var(--txt2); }
+.mt-arr { font-size: .95rem; color: var(--safe); animation: bounce 1.5s ease-in-out infinite; }
+
+
+/* ── 16. ANALYZING OVERLAY ────────────────────────────────────────
+   Full-screen while routes are being fetched and scored.
+────────────────────────────────────────────────────────────────*/
+#analyzing {
+  position: fixed; inset: 0; z-index: 8000;
+  background: radial-gradient(ellipse at 50% 40%, #0c1f3a 0%, var(--bg) 65%);
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px;
+}
+#analyzing.show { display: flex; }
+.an-ic     { font-size: 3.2rem; animation: beat 1s ease-in-out infinite; margin-bottom: 13px; }
+.an-title  { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.45rem; background: linear-gradient(135deg, var(--safe), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px; }
+.an-sub    { font-size: .75rem; color: var(--txt2); margin-bottom: 28px; text-align: center; max-width: 250px; line-height: 1.55; font-style: italic; }
+.an-prog   { width: 210px; height: 3px; background: rgba(255,255,255,.06); border-radius: 2px; overflow: hidden; margin-bottom: 11px; }
+.an-bar    { height: 100%; background: linear-gradient(90deg, var(--safe), var(--blue)); border-radius: 2px; width: 0%; transition: width .3s ease; }
+.an-status { font-size: .7rem; color: var(--txt2); letter-spacing: .04em; min-height: 18px; margin-bottom: 26px; }
+.an-steps  { display: flex; gap: 18px; }
+.an-step   { display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: .18; transition: all .3s; }
+.an-step.on{ opacity: 1; }
+.an-step-ic{ font-size: 1.3rem; }
+.an-step-lb{ font-size: .6rem; color: var(--txt2); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+
+/* ── 17. WELCOME SCREEN ──────────────────────────────────────────
+   Shown on very first launch over the app.
+────────────────────────────────────────────────────────────────*/
+#welcome {
+  position: absolute; inset: 0; z-index: 600;
+  background: radial-gradient(ellipse at 50% 40%, #0c1f3a 0%, var(--bg) 65%);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; padding: 28px; overflow-y: auto;
+}
+.wl-ic   { font-size: 2.8rem; animation: pop .7s cubic-bezier(.34,1.56,.64,1); margin-bottom: 9px; }
+.wl-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.6rem; letter-spacing: -.04em; background: linear-gradient(135deg, var(--safe), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 4px; animation: up .4s .1s both; }
+.wl-tag  { font-size: .85rem; color: var(--txt2); text-align: center; margin-bottom: 8px; animation: up .4s .2s both; }
+.wl-tag em { color: var(--safe); font-style: italic; font-weight: 600; }
+.wl-sub  { font-size: .73rem; color: var(--txt2); text-align: center; opacity: .55; margin-bottom: 28px; animation: up .4s .28s both; }
+.wl-grid { width: 100%; max-width: 370px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 22px; animation: up .4s .36s both; }
+.wf      { display: flex; flex-direction: column; gap: 4px; background: var(--s1); border: 1px solid var(--b1); border-radius: 13px; padding: 12px; }
+.wf-ic   { font-size: 1.3rem; }
+.wf-title{ font-size: .77rem; font-weight: 700; color: var(--txt); }
+.wf-desc { font-size: .68rem; color: var(--txt2); line-height: 1.4; }
+.wl-btn  { width: 100%; max-width: 370px; height: 48px; background: linear-gradient(135deg, var(--safe), var(--blue)); border: none; border-radius: 13px; color: #050d1a; font-family: 'Syne', sans-serif; font-weight: 800; font-size: .88rem; letter-spacing: .02em; cursor: pointer; box-shadow: 0 5px 20px var(--safe-g); animation: up .4s .48s both; transition: all .17s; }
+.wl-btn:hover  { opacity: .92; transform: translateY(-1px); }
+.wl-btn:active { transform: scale(.97); }
+
+
+/* ── 18. SOS MODAL & EMERGENCY CONTACTS ─────────────────────────
+   modal-bg: full-viewport backdrop, click-outside to close.
+   sos-panel: bottom sheet on mobile, centred card on desktop.
+   contacts-panel: extended variant for contact registration.
+────────────────────────────────────────────────────────────────*/
+.modal-bg {
+  position: fixed; inset: 0; z-index: 9500;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(8px);
+  display: none; align-items: flex-end; justify-content: center;
+}
+.modal-bg.show { display: flex; }
+
+.sos-panel {
+  background: var(--s1); border: 1px solid rgba(255,71,87,.2);
+  border-radius: 22px 22px 0 0; width: 100%; max-width: 400px;
+  padding: 20px 18px 48px;
+  animation: up .3s cubic-bezier(.34,1.56,.64,1);
+}
+/* Contacts panel: teal accent instead of red */
+.contacts-panel {
+  border-color: rgba(0,229,160,.2);
+  padding-bottom: 36px;
+}
+
+.sos-em    { font-size: 2.4rem; display: block; text-align: center; margin-bottom: 7px; animation: sosPulse 1s infinite; }
+.sos-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--danger); text-align: center; margin-bottom: 4px; }
+.sos-desc  { font-size: .75rem; color: var(--txt2); text-align: center; line-height: 1.5; margin-bottom: 16px; }
+.sos-acts  { display: flex; flex-direction: column; gap: 7px; }
+
+/* Action buttons */
+.sa { padding: 12px; border: none; border-radius: 12px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: .83rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: transform .14s; }
+.sa:active      { transform: scale(.97); }
+.sa-call        { background: var(--danger); color: #fff; }
+.sa-share       { background: var(--safe-d); color: var(--safe); border: 1px solid rgba(0,229,160,.22); }
+.sa-contacts    { background: rgba(79,138,255,.12); color: var(--blue); border: 1px solid rgba(79,138,255,.25); }
+.sa-cancel      { background: var(--s2); color: var(--txt2); }
+
+/* Emergency contact input fields */
+.contacts-fields       { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+.contact-field-group   { display: flex; flex-direction: column; gap: 5px; }
+.contact-label         { font-size: .68rem; font-weight: 700; color: var(--txt2); letter-spacing: .04em; }
+.contact-input-row     { display: flex; align-items: center; gap: 0; background: var(--s2); border: 1.5px solid var(--b2); border-radius: 10px; overflow: hidden; transition: border-color .2s; }
+.contact-input-row:focus-within { border-color: var(--safe); }
+.contact-prefix        { padding: 0 10px; font-size: .82rem; font-weight: 700; color: var(--safe); background: rgba(0,229,160,.06); border-right: 1px solid var(--b2); height: 44px; display: flex; align-items: center; flex-shrink: 0; }
+.contact-input         { flex: 1; background: none; border: none; outline: none; color: var(--txt); font-family: 'Plus Jakarta Sans', sans-serif; font-size: .84rem; font-weight: 500; padding: 0 11px; height: 44px; min-width: 0; }
+.contact-input::placeholder { color: var(--muted); }
+
+
+/* ── 19. ONBOARDING OVERLAY ──────────────────────────────────────*/
+.onboard-overlay {
+  position: fixed; inset: 0; z-index: 8000;
+  background: rgba(6,14,28,.88); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fadeIn .3s ease;
+}
+.onboard-sheet {
+  background: var(--s1); border: 1px solid var(--b2);
+  border-radius: 22px 22px 0 0; width: 100%; max-width: 420px;
+  padding: 22px 20px 36px;
+  animation: up .4s cubic-bezier(.34,1.56,.64,1);
+}
+.onboard-title      { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem; margin-bottom: 4px; background: linear-gradient(135deg, var(--safe), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.onboard-sub        { font-size: .76rem; color: var(--txt2); margin-bottom: 18px; line-height: 1.5; }
+.onboard-items      { display: flex; flex-direction: column; gap: 11px; margin-bottom: 20px; }
+.onboard-item       { display: flex; align-items: flex-start; gap: 11px; padding: 10px; background: var(--s2); border-radius: 12px; }
+.onboard-ico        { font-size: 1.4rem; flex-shrink: 0; }
+.onboard-item-title { font-weight: 700; font-size: .8rem; margin-bottom: 2px; }
+.onboard-item-desc  { font-size: .71rem; color: var(--txt2); line-height: 1.45; }
+.onboard-btn        { width: 100%; height: 46px; background: linear-gradient(135deg, var(--safe), var(--blue)); border: none; border-radius: 13px; color: #050d1a; font-family: 'Syne', sans-serif; font-weight: 800; font-size: .9rem; cursor: pointer; box-shadow: 0 4px 18px var(--safe-g); }
+
+
+/* ── 20. TOAST NOTIFICATION ──────────────────────────────────────
+   Centred at top; shown/hidden by toggling .show.
+────────────────────────────────────────────────────────────────*/
+#toast {
+  position: fixed; top: 13px; left: 50%; transform: translateX(-50%);
+  background: rgba(11,22,37,.97); backdrop-filter: blur(14px);
+  border: 1px solid var(--b2); border-radius: 50px;
+  padding: 7px 15px; font-size: .73rem; color: var(--txt);
+  z-index: 9999; white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity .22s;
+  max-width: 90%;
+}
+#toast.show { opacity: 1; }
+
+
+/* ── 21. MAP MARKERS ─────────────────────────────────────────────*/
+.mk {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; border: 2px solid rgba(255,255,255,.35);
+  box-shadow: 0 3px 12px rgba(0,0,0,.65);
+  position: relative;
+}
+.mk-police {
+  background: linear-gradient(145deg, #f5a623, #e07800);
+  border-color: rgba(255,220,100,.6);
+  box-shadow: 0 0 0 3px rgba(245,166,35,.25), 0 4px 14px rgba(0,0,0,.5);
+  font-size: 1rem;
+}
+.mk-hosp {
+  background: linear-gradient(145deg, #00c6e0, #0090b0);
+  border-color: rgba(100,240,255,.5);
+  box-shadow: 0 0 0 3px rgba(0,180,216,.22), 0 4px 14px rgba(0,0,0,.5);
+  font-size: 1rem;
+}
+/* CCTV: smaller indigo dot */
+.mk-cctv {
+  background: linear-gradient(145deg, #4f6aff, #3050cc);
+  border-color: rgba(150,180,255,.4);
+  width: 22px; height: 22px; font-size: .68rem;
+  box-shadow: 0 0 0 2px rgba(79,138,255,.2), 0 2px 8px rgba(0,0,0,.5);
+  border-width: 1.5px;
+}
+.mk-from { background: var(--safe);   box-shadow: 0 0 0 4px var(--safe-g), 0 4px 14px rgba(0,0,0,.5); }
+.mk-to   { background: var(--danger); box-shadow: 0 0 0 4px rgba(255,71,87,.25), 0 4px 14px rgba(0,0,0,.5); }
+.mk-user { width: 20px; height: 20px; background: var(--blue); border: 2.5px solid #fff; border-radius: 50%; box-shadow: 0 0 0 3px rgba(79,138,255,.3), 0 2px 8px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; font-size: .72rem; }
+
+/* Fork divergence marker — yellow lightning bolt placed where Balanced & Fastest split */
+.mk-fork {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(145deg, #ffd700, #ff9500);
+  border: 2px solid rgba(255,255,255,.6);
+  box-shadow: 0 0 0 4px rgba(255,215,0,.30), 0 0 14px rgba(255,149,0,.55), 0 4px 14px rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .9rem;
+  animation: fork-pulse 1.8s ease-in-out infinite;
+  cursor: pointer;
+}
+@keyframes fork-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(255,215,0,.30), 0 0 14px rgba(255,149,0,.55); }
+  50%       { box-shadow: 0 0 0 8px rgba(255,215,0,.15), 0 0 22px rgba(255,149,0,.80); }
+}
+
+/* Overlap tooltip styling */
+.overlap-tip {
+  background: rgba(10,20,40,.92) !important;
+  border: 1px solid rgba(255,215,0,.45) !important;
+  color: #ffd700 !important;
+  font-size: .75rem !important;
+  font-weight: 600;
+  border-radius: 8px !important;
+  padding: 5px 10px !important;
+  white-space: nowrap;
+}
+
+
+/* ── 22. RESPONSIVE — DESKTOP (≥769px) ───────────────────────────
+   Hides all mobile-only elements.
+   Sidebar is always visible; map is offset by sidebar width.
+────────────────────────────────────────────────────────────────*/
+@media (min-width: 769px) {
+  /* Hide mobile-only UI */
+  #mob-bar  { display: none !important; }
+  #mob-tab  { display: none !important; }
+  #mob-fabs { display: none !important; }
+
+  /* Sidebar is static, never transforms */
+  #sidebar  { transform: none !important; }
+
+  /* Map sits to the right of the sidebar */
+  #map { left: var(--bar); }
+
+  /* Tracking panel starts from sidebar edge */
+  .track-panel { left: var(--bar); border-radius: 0 0 14px 0; border-left: 1px solid var(--b2); }
+
+  /* Centred modals on desktop */
+  .modal-bg         { align-items: center; }
+  .sos-panel        { border-radius: 20px; padding: 28px; max-width: 380px; }
+  .contacts-panel   { max-width: 400px; }
+  .onboard-overlay  { align-items: center; }
+  .onboard-sheet    { border-radius: 22px; padding: 28px 24px; }
+}
+
+
+/* ── 23. RESPONSIVE — MOBILE (≤768px) ────────────────────────────
+   KEY FIX: On small screens the transport banner and route cards
+   previously overlapped because the sidebar head was visible
+   inside the sheet, consuming space. Hiding it and adjusting
+   padding eliminates the collision.
+   Also fixes the zoom control being hidden by the bottom tab.
+────────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Sidebar becomes a bottom sheet */
+  #sidebar {
+    left: 0; right: 0; top: auto; bottom: 0;
+    width: 100%; border-right: none;
+    border-top: 1px solid var(--b2);
+    border-radius: 22px 22px 0 0;
+    max-height: 84vh;
+    transform: translateY(100%);   /* hidden off-screen by default */
+  }
+  #sidebar.open { transform: translateY(0); }
+
+  /* FIX: Hide sidebar header inside the sheet — it duplicates the mobile top bar */
+  #sidebar .sb-head { display: none !important; }
+
+  /* FIX: Extra top padding since sb-head is hidden — content starts at drag handle */
+  .filter-section    { padding-top: 13px; }
+  .transport-banner  { margin-top: 13px; }
+
+  /* Mobile-only elements: show */
+  #mob-bar  { display: block; }
+  #mob-tab  { display: block; }
+  #mob-fabs { display: flex; bottom: 82px; }
+
+  /* Show drag handle in mobile sidebar */
+  .mob-handle { display: block; }
+
+  /* Lift Leaflet zoom buttons above the bottom tab bar */
+  .leaflet-bottom.leaflet-right { bottom: 70px !important; }
+  .leaflet-control-zoom         { margin-bottom: 0 !important; }
+
+  /* Smaller markers on mobile to reduce clutter — addresses screenshot pile-up issue */
+  .mk                     { width: 22px; height: 22px; font-size: .68rem; border-width: 1.5px; }
+  .mk-police, .mk-hosp    { width: 22px; height: 22px; font-size: .70rem; }
+  .mk-cctv                { width: 16px; height: 16px; font-size: .52rem; }
+  .mk-fork                { width: 22px; height: 22px; font-size: .72rem; }
+}
+
+
+/* ── 24. KEYFRAME ANIMATIONS ─────────────────────────────────────*/
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes up      { from { opacity: 0; transform: translateY(13px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pop     { from { opacity: 0; transform: scale(.35); }       to { opacity: 1; transform: scale(1); } }
+@keyframes fadeIn  { from { opacity: 0; }                              to { opacity: 1; } }
+@keyframes beat    { 0%,100% { transform: scale(1); }    50% { transform: scale(1.1); } }
+@keyframes sosPulse{ 0%,100% { box-shadow: 0 0 0 0 rgba(255,71,87,.5); } 50% { box-shadow: 0 0 0 8px rgba(255,71,87,0); } }
+@keyframes blink   { 0%,100% { opacity: 1; }             50% { opacity: .22; } }
+@keyframes bounce  { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes dzPulse { 0%,100% { opacity: .28; }           50% { opacity: .58; } }
+
+/* Dark zone circle animation class */
+.dzc { animation: dzPulse 2.4s ease-in-out infinite; }

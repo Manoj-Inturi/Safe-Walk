@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ═══════════════════════════════════════════
+       HEAD — Meta, fonts, external libraries
+  ═══════════════════════════════════════════ -->
+  <meta charset="UTF-8">
+  <!-- Viewport: prevents user-zoom to keep map controls usable -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SafeWalk – AI Safety Navigation</title>
+
+  <!-- Leaflet CSS — map tiles and controls -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+
+  <!-- Google Fonts: Syne for headings, Plus Jakarta Sans for body -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet JS — must load before app.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <!-- Main stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════
+       SPLASH SCREEN
+       Auto-dismissed after ~700ms startup sequence
+  ══════════════════════════════════════════ -->
+  <div id="splash">
+    <div class="sp-ring">
+      <div class="sp-ic">🛡️</div>
+    </div>
+    <div class="sp-logo">SafeWalk</div>
+    <div class="sp-tag">Safer is better than faster</div>
+
+    <!-- Step indicators animate in sequence during boot -->
+    <div class="sp-steps">
+      <div class="sp-step" id="ss0"><div class="sp-dot"></div>Initializing map engine</div>
+      <div class="sp-step" id="ss1"><div class="sp-dot"></div>Loading safety database</div>
+      <div class="sp-step" id="ss2"><div class="sp-dot"></div>Ready to navigate</div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       ANALYZING OVERLAY
+       Shown while routes are being fetched and scored.
+       Progress bar and step icons animate via JS.
+  ══════════════════════════════════════════ -->
+  <div id="analyzing">
+    <div class="an-ic">🛡️</div>
+    <div class="an-title">SafeWalk AI</div>
+    <div class="an-sub">"Safer is better than faster" — calculating your safest path</div>
+
+    <!-- Progress bar filled by doAnalyzingAnim() -->
+    <div class="an-prog">
+      <div class="an-bar" id="anBar"></div>
+    </div>
+    <div class="an-status" id="anSt">Fetching road data…</div>
+
+    <!-- Four step icons that light up in sequence -->
+    <div class="an-steps">
+      <div class="an-step" id="ai0"><div class="an-step-ic">🗺️</div><div class="an-step-lb">Route</div></div>
+      <div class="an-step" id="ai1"><div class="an-step-ic">📷</div><div class="an-step-lb">CCTV</div></div>
+      <div class="an-step" id="ai2"><div class="an-step-ic">🌑</div><div class="an-step-lb">Dark</div></div>
+      <div class="an-step" id="ai3"><div class="an-step-ic">🤖</div><div class="an-step-lb">Score</div></div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       MAIN APP SHELL
+       Contains: map, PC sidebar, mobile top bar,
+       mobile FABs, mobile bottom tab, welcome screen.
+  ══════════════════════════════════════════ -->
+  <div id="app">
+
+    <!-- ── MAP ── -->
+    <!-- Leaflet renders into this div. On desktop it is offset left by --bar (340px sidebar). -->
+    <div id="map"></div>
+
+    <!-- Hint bubble shown before first route search -->
+    <div id="map-hint">
+      <div class="map-hint-bubble">🛡️ Enter <b>From</b> and <b>To</b> above to find safe routes</div>
+    </div>
+
+
+    <!-- ════════════════════════════════════════
+         PC SIDEBAR
+         Always visible on ≥769px screens.
+         Slides up from bottom as a sheet on mobile
+         when .open class is applied.
+    ════════════════════════════════════════ -->
+    <div id="sidebar">
+
+      <!-- Drag handle — visible only on mobile, swipe down to close sidebar -->
+      <div class="mob-handle" id="mobHandle"></div>
+
+      <!-- ── Sidebar Header: logo, live indicator, buttons, search fields ── -->
+      <div class="sb-head">
+        <div class="sb-logo-row">
+          <div>
+            <div class="sb-logo">
+              <span class="sw-text">Safe</span><span class="sw-text" style="opacity:.7">Walk</span>
+              <span class="sw-shield">🛡️</span>
+            </div>
+            <!-- Live clock: updated every GPS watch tick -->
+            <div class="sb-live">
+              <div class="ldot"></div>
+              <span id="liveT">Live</span>
+            </div>
+          </div>
+
+          <!-- Right: night mode toggle, locate, SOS -->
+          <div class="sb-right">
+            <button class="ibtn" id="nightBtn" onclick="toggleNightMode()" title="Toggle night mode">🌙</button>
+            <button class="ibtn" onclick="locateMe()" title="My location">📍</button>
+            <button class="sos-btn" onclick="showSOS()">🆘 SOS</button>
+          </div>
+        </div>
+
+        <!-- ── Search Fields ── -->
+        <div class="sb-search">
+
+          <!-- FROM field with GPS button -->
+          <div class="field-row">
+            <div class="field">
+              <div class="fdot fdot-f"></div>
+              <input id="fromIn" type="text" placeholder="From — click 🎯 for GPS" autocomplete="off"
+                oninput="onSug('from','pc')" onblur="hideSug(160)" onfocus="onSug('from','pc')">
+              <button class="floc" onclick="requestGPS()" title="Use GPS location">🎯</button>
+            </div>
+            <div class="sugg" id="fromSugg"></div>
+          </div>
+
+          <!-- TO field + swap button -->
+          <div class="swap-row">
+            <div class="field-row" style="flex:1">
+              <div class="field">
+                <div class="fdot fdot-t"></div>
+                <input id="toIn" type="text" placeholder="To — search destination" autocomplete="off"
+                  oninput="onSug('to','pc')" onblur="hideSug(160)" onfocus="onSug('to','pc')">
+              </div>
+              <div class="sugg" id="toSugg"></div>
+            </div>
+            <button class="swap-btn" onclick="swapLocs()">⇅</button>
+          </div>
+
+          <!-- Find Routes button -->
+          <button class="go-btn" id="pcGo" onclick="startSearch()">🔍 Find Safe Routes</button>
+        </div>
+      </div><!-- /.sb-head -->
+
+      <!-- ── Sidebar Body: transport banner, filters, route cards ── -->
+      <div class="sb-body">
+
+        <!-- ── Transport Warning Banner ──
+             Shown when haversine distance > WALK_LIMIT_KM (2.5 km).
+             Offers bus, cab, or metro alternatives. -->
+        <div class="transport-banner" id="transBanner">
+          <div class="tb-head">
+            <span>⚠️</span>
+            <div class="tb-title" id="transTitle">Long distance detected</div>
+          </div>
+          <div class="tb-body" id="transBody">This route is too far to walk safely.</div>
+          <div class="tb-opts">
+            <div class="tb-opt" onclick="openMaps('bus')">🚌 Public Bus</div>
+            <div class="tb-opt" onclick="openMaps('cab')">🚕 Book Cab</div>
+            <div class="tb-opt" onclick="openMaps('metro')">🚇 Metro/Train</div>
+          </div>
+        </div>
+
+        <!-- ── Map Layer Filter Chips ──
+             Horizontally scrollable on mobile.
+             Each chip toggles a map layer (safe routes, dark zones, police, hospitals, CCTV). -->
+        <div class="filter-section">
+          <div class="filter-label-row">
+            <div class="filter-label">Map Layers</div>
+            <div class="filter-scroll-hint" onclick="scrollFilters()">‹ › scroll</div>
+          </div>
+
+          <!-- Drag-scrollable chip track -->
+          <div class="filter-track-wrap">
+            <div class="filter-row" id="filterRow">
+              <div class="fc fc-safe on"  id="fc-safe"  onclick="toggleFC(this,'safe')">🟢 Safe Routes</div>
+              <div class="fc fc-dark on"  id="fc-dark"  onclick="toggleFC(this,'dark')">🌑 Dark Zones</div>
+              <div class="fc fc-pol on"   id="fc-pol"   onclick="toggleFC(this,'police')">🚔 Police</div>
+              <div class="fc fc-hosp on"  id="fc-hosp"  onclick="toggleFC(this,'hospital')">🏥 Hospitals</div>
+              <div class="fc fc-cctv"     id="fc-cctv"  onclick="toggleFC(this,'cctv')">📷 CCTV</div>
+            </div>
+          </div>
+
+          <!-- Scroll position dots indicator -->
+          <div class="filter-dots" id="filterDots">
+            <div class="fdot-ind active"></div>
+            <div class="fdot-ind"></div>
+            <div class="fdot-ind"></div>
+          </div>
+        </div>
+
+        <!-- ── Route Cards ──
+             Hidden until routes are found (display toggled by buildRoutes()).
+             Each card shows safety score, time, distance, tags, and Walk/Select buttons. -->
+        <div class="routes-section" id="routesSec" style="display:none">
+          <div class="routes-title">
+            <span>🛡️ Routes Found</span>
+            <!-- Truncated "From → To" label -->
+            <span class="routes-meta" id="routesMeta"></span>
+          </div>
+          <div class="rlist" id="rlist"></div>
+        </div>
+
+        <!-- ── Empty State ── shown before first search -->
+        <div class="empty-state" id="emptyState">
+          <div class="es-ic">🗺️</div>
+          <div class="es-title">Enter a route above</div>
+          <div class="es-sub">Type any place — SafeWalk finds the safest walking path with real safety data.</div>
+        </div>
+
+        <!-- ── Turn-by-Turn Directions (injected by buildDirections()) ── -->
+        <div class="dir-section" id="dirSection" style="display:none">
+          <div class="dir-toggle" onclick="toggleDirList()">
+            <div class="dir-toggle-left">🧭 Directions</div>
+            <div class="dir-toggle-right">
+              <span id="dirCount">0 steps</span>
+              <span id="dirArrow">▸</span>
+            </div>
+          </div>
+          <div class="dir-list" id="dirList"></div>
+        </div>
+
+      </div><!-- /.sb-body -->
+    </div><!-- /#sidebar -->
+
+
+    <!-- ════════════════════════════════════════
+         MOBILE TOP BAR
+         Shown only on ≤768px.
+         Contains: logo, live clock, SOS, From/To fields, Go button.
+    ════════════════════════════════════════ -->
+    <div id="mob-bar">
+      <div class="mb-inner">
+
+        <!-- Row 1: logo + live + SOS -->
+        <div class="mb-row1">
+          <div class="mb-logo">
+            Safe<span style="-webkit-text-fill-color:rgba(0,229,160,.7);background:none">Walk</span> 🛡️
+          </div>
+          <div class="mb-live"><div class="ldot"></div><span id="mobLiveT">Live</span></div>
+          <button class="sos-btn"
+            style="height:28px;font-size:.63rem;padding:0 10px;margin-left:6px"
+            onclick="showSOS()">🆘 SOS</button>
+        </div>
+
+        <!-- Row 2 & 3: From, To, Go -->
+        <div class="mb-fields">
+          <div class="mb-frow">
+            <div class="mb-field">
+              <div class="fdot fdot-f" style="width:7px;height:7px;flex-shrink:0"></div>
+              <input id="mobFrom" type="text" placeholder="From — tap 🎯 for GPS" autocomplete="off"
+                oninput="onSug('from','mob')" onblur="hideSug(180)" onfocus="onSug('from','mob')">
+              <button class="floc" onclick="requestGPS()" style="font-size:.88rem;flex-shrink:0">🎯</button>
+            </div>
+          </div>
+
+          <div class="mb-frow">
+            <div class="mb-field">
+              <div class="fdot fdot-t" style="width:7px;height:7px;flex-shrink:0"></div>
+              <input id="mobTo" type="text" placeholder="To — search destination" autocomplete="off"
+                oninput="onSug('to','mob')" onblur="hideSug(180)" onfocus="onSug('to','mob')">
+            </div>
+            <button class="mb-side" onclick="swapLocs()">⇅</button>
+          </div>
+
+          <button class="mb-go" id="mobGo" onclick="startSearch()">🔍 Find Safe Routes</button>
+        </div>
+      </div><!-- /.mb-inner -->
+
+      <!-- Mobile autocomplete dropdowns — positioned below bar via JS -->
+      <div class="mb-sugg" id="mobFromSugg"></div>
+      <div class="mb-sugg" id="mobToSugg"></div>
+    </div><!-- /#mob-bar -->
+
+
+    <!-- ════════════════════════════════════════
+         MOBILE FABs
+         Floating action buttons: locate + SOS.
+         Positioned above the bottom tab bar.
+    ════════════════════════════════════════ -->
+    <div id="mob-fabs">
+      <button class="fab" onclick="locateMe()" title="My location">📍</button>
+      <button class="fab fab-sos" onclick="showSOS()">🆘 SOS</button>
+    </div>
+
+
+    <!-- ════════════════════════════════════════
+         MOBILE BOTTOM TAB
+         Tappable strip at viewport bottom.
+         Expands the sidebar sheet on click.
+         Shows route summary after routes are found.
+    ════════════════════════════════════════ -->
+    <div id="mob-tab" onclick="toggleSidebar()">
+      <div class="mt-handle"></div>
+      <div class="mt-inner">
+        <div class="mt-left">
+          <div class="mt-ico" id="tabIco">🗺️</div>
+          <div class="mt-txt">
+            <strong id="tabTitle">SafeWalk</strong>
+            <span id="tabSub">Tap to search routes</span>
+          </div>
+        </div>
+        <div class="mt-arr">↑</div>
+      </div>
+    </div>
+
+
+    <!-- ════════════════════════════════════════
+         WELCOME SCREEN
+         Full-screen overlay shown on first visit.
+         Dismissed by enterApp() when user taps "Get Started".
+    ════════════════════════════════════════ -->
+    <div id="welcome">
+      <div class="wl-ic">🛡️</div>
+      <div class="wl-logo">SafeWalk</div>
+      <div class="wl-tag"><em>Safer is better than faster</em></div>
+      <div class="wl-sub">AI-powered routing that protects you — not just guides you.</div>
+
+      <!-- Feature grid -->
+      <div class="wl-grid">
+        <div class="wf"><div class="wf-ic">🗺️</div><div class="wf-title">Real Roads</div><div class="wf-desc">Routes on actual streets</div></div>
+        <div class="wf"><div class="wf-ic">🌑</div><div class="wf-title">Dark Zones</div><div class="wf-desc">Highlights risky dark areas</div></div>
+        <div class="wf"><div class="wf-ic">🚔</div><div class="wf-title">Police & Hospitals</div><div class="wf-desc">Nearest emergency services</div></div>
+        <div class="wf"><div class="wf-ic">📷</div><div class="wf-title">CCTV Coverage</div><div class="wf-desc">Camera-monitored corridors</div></div>
+      </div>
+      <button class="wl-btn" onclick="enterApp()">Get Started →</button>
+    </div>
+
+  </div><!-- /#app -->
+
+
+  <!-- ══════════════════════════════════════════
+       SOS MODAL
+       Full-screen overlay triggered by any SOS button.
+       Calls 112 (India national emergency number) or shares live location.
+       Background click closes modal (handled by closeSOS()).
+  ══════════════════════════════════════════ -->
+  <div class="modal-bg" id="sosModal" onclick="closeSOS(event)">
+    <div class="sos-panel">
+      <span class="sos-em">🆘</span>
+      <div class="sos-title">Emergency SOS</div>
+      <div class="sos-desc">
+        Your live location will be shared with emergency contacts and local authorities.
+      </div>
+
+      <div class="sos-acts">
+        <!-- Initiates tel: link to dial 112 (India national emergency) -->
+        <button class="sa sa-call" onclick="callEmg()">📞 Call 112 — Emergency</button>
+
+        <!-- Shares current GPS coordinates via Web Share API or copies link -->
+        <button class="sa sa-share" onclick="shareLoc()">📍 Share My Live Location</button>
+
+        <!-- Sends location SMS to stored emergency contacts -->
+        <button class="sa sa-contacts" onclick="sendToContacts()">📲 Alert My Contacts</button>
+
+        <button class="sa sa-cancel" onclick="closeSOS()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       ONBOARDING OVERLAY
+       Displayed once per device (localStorage flag "sw_onboarded").
+       Explains key features; dismissed by dismissOnboard().
+  ══════════════════════════════════════════ -->
+  <div class="onboard-overlay" id="onboardOverlay" style="display:none">
+    <div class="onboard-sheet">
+      <div class="onboard-title">Welcome to SafeWalk 🛡️</div>
+      <div class="onboard-sub">AI-powered safety navigation for India. Here's what you need to know:</div>
+
+      <div class="onboard-items">
+        <div class="onboard-item">
+          <div class="onboard-ico">🛡️</div>
+          <div>
+            <div class="onboard-item-title">Safety Scores</div>
+            <div class="onboard-item-desc">Routes are scored 0–96% based on road type, lighting data, and proximity to police stations and hospitals from OpenStreetMap.</div>
+          </div>
+        </div>
+
+        <div class="onboard-item">
+          <div class="onboard-ico">🌙</div>
+          <div>
+            <div class="onboard-item-title">Night Mode</div>
+            <div class="onboard-item-desc">Tap 🌙 to enable night scoring — unlit roads get heavily penalised. Auto-enables after 8 PM.</div>
+          </div>
+        </div>
+
+        <div class="onboard-item">
+          <div class="onboard-ico">🚶</div>
+          <div>
+            <div class="onboard-item-title">Live Navigation</div>
+            <div class="onboard-item-desc">After finding routes, tap <b>🚶 Walk</b> on any route card to start live GPS navigation with turn-by-turn directions.</div>
+          </div>
+        </div>
+
+        <div class="onboard-item">
+          <div class="onboard-ico">🚨</div>
+          <div>
+            <div class="onboard-item-title">SOS Button</div>
+            <div class="onboard-item-desc">The red SOS button dials emergency services (112) and shares your location with your saved contacts. Tap anytime for immediate help.</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="onboard-btn" onclick="dismissOnboard()">Got it — Find Safe Routes</button>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       EMERGENCY CONTACTS REGISTRATION MODAL
+       Shown on first launch (or when contacts are missing).
+       Two phone number fields stored in localStorage as "sw_emergency_contacts".
+       User can skip — contacts remain empty until saved.
+  ══════════════════════════════════════════ -->
+  <div class="modal-bg" id="contactsModal">
+    <div class="sos-panel contacts-panel">
+      <span class="sos-em">📱</span>
+      <div class="sos-title" style="color:var(--safe)">Add Emergency Contacts</div>
+      <div class="sos-desc">
+        These numbers will receive your location automatically when you press SOS.
+        Use Indian mobile numbers (10 digits).
+      </div>
+
+      <div class="contacts-fields">
+        <!-- Contact 1 -->
+        <div class="contact-field-group">
+          <label class="contact-label">Contact 1 (e.g. family member)</label>
+          <div class="contact-input-row">
+            <span class="contact-prefix">+91</span>
+            <input id="contact1Input" type="tel" maxlength="10"
+              placeholder="98xxxxxxxx" class="contact-input"
+              oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+        </div>
+
+        <!-- Contact 2 -->
+        <div class="contact-field-group">
+          <label class="contact-label">Contact 2 (e.g. friend or colleague)</label>
+          <div class="contact-input-row">
+            <span class="contact-prefix">+91</span>
+            <input id="contact2Input" type="tel" maxlength="10"
+              placeholder="98xxxxxxxx" class="contact-input"
+              oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+        </div>
+      </div>
+
+      <div class="sos-acts" style="margin-top:16px">
+        <button class="sa sa-call" onclick="saveContacts()">💾 Save Contacts</button>
+        <button class="sa sa-cancel" onclick="skipContacts()">Skip for now</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       LIVE TRACKING PANEL
+       Slides up from bottom during active navigation.
+       Shows: km remaining, minutes left, % complete, next turn instruction.
+       Dismissed by stopTracking().
+  ══════════════════════════════════════════ -->
+  <div class="track-panel" id="trackPanel">
+    <div class="track-header">
+      <div class="track-title">
+        <!-- Blinking green dot indicates live GPS is active -->
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--safe);display:inline-block;animation:blink 1s infinite"></span>
+        Walking Now
+      </div>
+      <button class="track-close" onclick="stopTracking()">✕ Stop</button>
+    </div>
+
+    <!-- Live stats row -->
+    <div class="track-stats">
+      <div class="track-stat">
+        <div class="track-stat-val" id="trDist">—</div>
+        <div class="track-stat-lbl">km left</div>
+      </div>
+      <div class="track-stat">
+        <div class="track-stat-val" id="trTime">—</div>
+        <div class="track-stat-lbl">min left</div>
+      </div>
+      <div class="track-stat">
+        <div class="track-stat-val" id="trPct">0%</div>
+        <div class="track-stat-lbl">complete</div>
+      </div>
+    </div>
+
+    <!-- Progress bar: Start → Destination -->
+    <div class="track-prog-wrap">
+      <div class="track-prog-lbl">
+        <span>Start</span>
+        <span id="trDestName">Destination</span>
+      </div>
+      <div class="track-prog">
+        <div class="track-prog-fill" id="trProgFill"></div>
+      </div>
+    </div>
+
+    <!-- Next turn instruction (updated by updateTrackingProgress()) -->
+    <div class="track-step" id="trStep">
+      <div class="track-step-ico">🧭</div>
+      <div>Select a route and tap <b>Start Walking</b> to begin navigation</div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       TOAST NOTIFICATION
+       Appears at top-centre; auto-dismisses.
+       Content set by showToast(msg, duration).
+  ══════════════════════════════════════════ -->
+  <div id="toast"></div>
+
+
+  <!-- ══════════════════════════════════════════
+       LOGO UPLOADER
+       Hidden file input invoked by logo click events
+       to dynamically substitute the textual logo.
+  ══════════════════════════════════════════ -->
+  <input type="file" id="logoUploader" style="display:none" accept="image/*" onchange="handleLogoUpload(event)">
+
+  <!-- Main application script — loaded last so DOM is ready -->
+  <script src="app.js"></script>
+</body>
+</html>
